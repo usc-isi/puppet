@@ -1,0 +1,66 @@
+#!/bin/bash
+
+set -o xtrace
+
+# Roles
+keystone $* role-create --name=Admin
+keystone $* role-create --name=KeystoneServiceAdmin
+keystone $* role-create --name=KeystoneAdmin
+keystone $* role-create --name=Member
+keystone $* role-create --name=Project1
+
+# Users
+keystone $* user-create --name=admin --pass="secrete" --email=admin@example.com
+keystone $* user-create --name=demo --pass="demosecrete" --email=demo@example.com
+keystone $* user-create --name=nova --pass="secrete" --email=nova@example.com
+keystone $* user-create --name=glance --pass="secrete" --email=glance@example.com
+
+# Tenants
+keystone $* tenant-create --name=admin
+keystone $* tenant-create --name=service
+keystone $* tenant-create --name=demo
+
+# User Roles
+adminRole=`keystone $* role-list | grep ' Admin ' | awk '{print $2}'`
+memberRole=`keystone $* role-list | grep ' Member ' | awk '{print $2}'`
+keystoneServiceAdminRole=`keystone $* role-list | grep ' KeystoneServiceAdmin ' | awk '{print $2}'`
+keystoneAdminRole=`keystone $* role-list | grep ' KeystoneAdmin ' | awk '{print $2}'`
+
+adminUser=`keystone $* user-list | grep ' admin ' | awk '{print $2}'`
+demoUser=`keystone $* user-list | grep ' demo ' | awk '{print $2}'`
+novaUser=`keystone $* user-list | grep ' nova ' | awk '{print $2}'`
+glanceUser=`keystone $* user-list | grep ' glance ' | awk '{print $2}'`
+
+adminTenant=`keystone $* tenant-list | grep ' admin '  | awk '{print $2}'`
+serviceTenant=`keystone $* tenant-list | grep ' service '  | awk '{print $2}'`
+demoTenant=`keystone $* tenant-list | grep ' demo '  | awk '{print $2}'`
+
+keystone $* user-role-add --user $adminUser --role $adminRole --tenant_id $adminTenant
+keystone $* user-role-add --user $adminUser --role $adminRole --tenant_id $serviceTenant
+keystone $* user-role-add --user $adminUser --role $adminRole --tenant_id $demoTenant
+
+keystone $* user-role-add --user $adminUser --role $keystoneServiceAdminRole --tenant_id $adminTenant
+keystone $* user-role-add --user $adminUser --role $keystoneAdminRole --tenant_id $adminTenant
+
+keystone $* user-role-add --user $demoUser --role $memberRole --tenant_id $demoTenant
+
+keystone $* user-role-add --user $novaUser --role $adminRole --tenant_id $serviceTenant
+keystone $* user-role-add --user $glanceUser --role $adminRole --tenant_id $serviceTenant
+
+# tempest 
+
+keystone $* user-create --name=tempestAdmin --pass="tpassadmin" --email=tempestAdmin@example.com
+keystone $* user-create --name=tempest1 --pass="tpass1" --email=tempest1@example.com
+keystone $* user-create --name=tempest2 --pass="tpass2" --email=tempest2@example.com
+
+tempestAdminUser=`keystone $* user-list | grep ' tempestAdmin ' | awk '{print $2}'`
+tempest1User=`keystone $* user-list | grep ' tempest1 ' | awk '{print $2}'`
+tempest2User=`keystone $* user-list | grep ' tempest2 ' | awk '{print $2}'`
+
+keystone $* tenant-create --name=tempest
+
+tempestTenant=`keystone $* tenant-list | grep ' tempest '  | awk '{print $2}'`
+
+keystone $* user-role-add --user $tempestAdminUser --role $adminRole --tenant_id $tempestTenant
+keystone $* user-role-add --user $tempest1User --role $memberRole --tenant_id $tempestTenant
+keystone $* user-role-add --user $tempest2User --role $memberRole --tenant_id $tempestTenant
