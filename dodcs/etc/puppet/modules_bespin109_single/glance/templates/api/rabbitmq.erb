@@ -1,0 +1,18 @@
+###                   ###
+#   Begin rabbitmq.erb  #
+###                   ###
+
+# Configuration options if sending notifications via rabbitmq (these are
+# the defaults)
+rabbit_host = <%= config['rabbit_host'] %>
+rabbit_port = <%= config['rabbit_port'] %>
+rabbit_use_ssl = <%= config['rabbit_use_ssl'] %>
+rabbit_userid =  <%= config['rabbit_userid'] %>
+rabbit_password = <%= config['rabbit_password'] %>
+rabbit_virtual_host = /
+rabbit_notification_exchange = glance
+rabbit_notification_topic = glance_notifications
+
+###                 ###
+#   End rabbitmq.erb  #
+###                 ###

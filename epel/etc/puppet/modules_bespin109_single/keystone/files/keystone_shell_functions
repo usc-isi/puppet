@@ -1,0 +1,80 @@
+# DODCS OpenStack
+# --------------------------------------------------------------------------- #
+# Functions to run keystone user and tenant setup commands in a shell script.
+# Soure this file in the script to define these functions.
+# --------------------------------------------------------------------------- #
+
+function get_id () {
+    echo `$@ | grep ' id ' | cut -d '|' -f 3`
+}
+
+function keystone_lookup () {
+    echo `keystone $1 | grep '^|' | grep " $2 " | cut -d '|' -f 2`
+}
+
+function tenant_create () {
+    name=$1
+    desc=$2
+    tid=$(keystone_lookup tenant-list $name)
+    if [ -z "$tid" ]
+    then
+	keystone tenant-create --name $name --description "$desc" 1>&2
+	tid=$(keystone_lookup tenant-list $name)
+    fi
+    echo $tid
+}
+
+function role_create () {
+    name=$1
+    role=$(keystone_lookup role-list $name)
+    if [ -z "$role" ]
+    then
+	keystone role-create --name $name 1>&2
+	role=$(keystone_lookup role-list $name)
+    fi
+    echo $role
+}
+
+function user_create () {
+    user=$1
+    pass=$2
+    email=$3
+    tenant=$4
+
+    option=""
+    if [ -n "$tenant" ] 
+    then
+	option="--tenant_id $tenant"
+    fi
+
+    id=$(keystone_lookup user-list $user)
+    if [ -z "$id" ]
+    then
+	keystone user-create --name $user --pass $pass --email $email $option 1>&2
+	id=$(keystone_lookup user-list $user)
+    fi
+    echo $id
+}
+
+
+function user_role_add () {
+    user=$1
+    role=$2
+    tenant=$3
+    roleNow=""
+    hasCommand=`keystone help | grep user-role-list`
+    if [ -n "$hasCommand" ]
+    then
+	roleNow=$(keystone_lookup "user-role-list --user-id $user --tenant-id $tenant" $role)
+    fi
+    if [ -z "$roleNow" ]
+    then
+	    if [ -n "$hasCommand" ]
+	    then
+		keystone user-role-add --user-id $user --role-id $role --tenant-id $tenant
+	    else
+		keystone user-role-add --user $user --role $role --tenant_id $tenant
+	    fi
+    fi
+}
+

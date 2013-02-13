@@ -1,0 +1,136 @@
+[DEFAULT]
+# Show more verbose log output (sets INFO log level output)
+verbose = <%= config['log_verbose'] %>
+
+# Show debugging output in logs (sets DEBUG log level output)
+debug = <%= config['log_debug'] %>
+
+# Which backend scheme should Glance use by default is not specified
+# in a request to add a new image to Glance? Known schemes are determined
+# by the known_stores option below.
+# Default: 'file'
+default_store = file
+
+# List of which store classes and store class locations are
+# currently known to glance at startup.
+#known_stores = glance.store.filesystem.Store,
+#               glance.store.http.Store,
+#               glance.store.rbd.Store,
+#               glance.store.s3.Store,
+#               glance.store.swift.Store,
+
+
+# Maximum image size (in bytes) that may be uploaded through the
+# Glance API server. Defaults to 1 TB.
+# WARNING: this value should only be increased after careful consideration
+# and must be set to a value under 8 EB (9223372036854775808).
+#image_size_cap = 1099511627776
+
+# Address to bind the API server
+bind_host = <%= config['bind_host'] %>
+
+# Port the bind the API server to
+bind_port = <%= config['bind_port'] %>
+
+
+# Log to this file. Make sure you do not set the same log
+# file for both the API and registry servers!
+log_file = <%= config['log_file'] %>
+
+# Backlog requests when creating socket
+backlog = <%= config['backlog'] %>
+# Backlog requests when creating socket
+
+# Number of Glance API worker processes to start.
+# On machines with more than one CPU increasing this value
+# may improve performance (especially if using SSL with
+# compression turned on). It is typically recommended to set
+# this value to the number of CPUs present on your machine.
+workers = <%= config['workers'] %>
+
+# Role used to identify an authenticated user as administrator
+#admin_role = admin
+
+# ================= Syslog Options ============================
+
+# Send logs to syslog (/dev/log) instead of to file specified
+# by `log_file`
+use_syslog = False
+
+# Facility to use. If unset defaults to LOG_USER.
+# syslog_log_facility = LOG_LOCAL0
+
+# ================= SSL Options ===============================
+
+# Certificate file to use when starting API server securely
+# cert_file = /path/to/certfile
+
+# Private key file to use when starting API server securely
+# key_file = /path/to/keyfile
+
+# CA certificate file to use to verify connecting clients
+#ca_file = /path/to/cafile
+
+# ================= Security Options ==========================
+
+# AES key for encrypting store 'location' metadata, including
+# -- if used -- Swift or S3 credentials
+# Should be set to a random string of length 16, 24 or 32 bytes
+# metadata_encryption_key = <16, 24 or 32 char registry metadata key>
+
+# ============ Registry Options ===============================
+
+# Address to find the registry server
+registry_host = <%= config['registry_host'] %>
+
+# Port the registry server is listening on
+registry_port = <%= config['registry_port'] %>
+
+# What protocol to use when connecting to the registry server?
+# Set to https for secure HTTP communication
+registry_client_protocol = http
+
+# The path to the key file to use in SSL connections to the
+# registry server, if any. Alternately, you may set the
+# GLANCE_CLIENT_KEY_FILE environ variable to a filepath of the key file
+# registry_client_key_file = /path/to/key/file
+
+# The path to the cert file to use in SSL connections to the
+# registry server, if any. Alternately, you may set the
+# GLANCE_CLIENT_CERT_FILE environ variable to a filepath of the cert file
+# registry_client_cert_file = /path/to/cert/file
+
+# The path to the certifying authority cert file to use in SSL connections
+# to the registry server, if any. Alternately, you may set the
+# GLANCE_CLIENT_CA_FILE environ variable to a filepath of the CA cert file
+# registry_client_ca_file = /path/to/ca/file
+
+## DODCS
+# TCP_KEEPIDLE value in seconds when creating socket.
+# Not supported on OS X.
+#tcp_keepidle = 600
+
+#### TODO #### 
+## Make these programmatic.
+
+# SQLAlchemy connection string for the reference implementation
+# registry server. Any valid SQLAlchemy connection string is fine.
+# See: http://www.sqlalchemy.org/docs/05/reference/sqlalchemy/connections.html#sqlalchemy.create_engine
+#sql_connection = sqlite:///glance.sqlite
+#sql_connection = mysql://glance:<%= glance_db_password %>@127.0.0.1/glance
+sql_connection = mysql://glance:<%= glance_db_password %>@<%= glance_host %>/glance
+
+# Period in seconds after which SQLAlchemy should reestablish its connection
+# to the database.
+#
+# MySQL uses a default `wait_timeout` of 8 hours, after which it will drop
+# idle connections. This can result in 'MySQL Gone Away' exceptions. If you
+# notice this, you can lower this value to ensure that SQLAlchemy reconnects
+# before MySQL can drop the connection.
+sql_idle_timeout = 3600
+
+## DODCS
+
+###               ###
+#   End header.erb  #
+###               ###

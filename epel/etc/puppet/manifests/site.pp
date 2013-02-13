@@ -1,0 +1,583 @@
+$puppetserver = 'bespin109.east.isi.edu'
+
+#include custom
+Exec {
+  path => [
+           '/usr/local/sbin',
+           '/usr/sbin',
+           '/sbin',
+           '/bin',
+           '/usr/local/bin',
+           '/usr/bin'],
+
+  logoutput => true,
+}
+
+node default {
+  notify { 'I can connect!': }
+#  import 'defaults.pp'
+}
+
+# Single-node
+#import 'bespin108.pp'
+#import 'bespin111.pp'
+
+# Multi-node
+#import 'vanilla-common.pp'
+####### shared variables ##################
+
+
+# this section is used to specify global variables that will
+# be used in the deployment of multi and single node openstack
+# environments
+
+# MySQL
+$db_type                = 'mysql'
+$mysql_root_password    = 'dbsecrete'
+$mysql_bind_address     = '0.0.0.0'
+$mysql_account_security = true
+$allowed_hosts          = '%'
+$db_host                = '10.0.5.9'
+
+
+# assumes that eth0 is the public interface
+$public_interface  = 'eth0'
+# assumes that eth1 is the interface that will be used for the vm network
+# this configuration assumes this interface is active but does not have an
+# ip address allocated to it.
+$private_interface = 'eth1'
+# switch this to true to have all service log at verbose
+#$verbose              = 'false'
+$verbose              = 'true'
+
+# credentials
+$admin_email               = 'root@localhost'
+
+#$rabbit_password           = 'dbsecrete'
+$rabbit_password           = 'd0dcSdba'  # Old bespin103
+#$rabbit_user               = 'openstack_rabbit_user'
+$rabbit_user               = 'nova'      # Old bespin103
+$rabbit_virtual_host       = '/'
+
+$quantum_admin_password    = 'servicepass'
+$quantum_admin_tenant_name = 'services'
+$quantum_admin_username    = 'quantum'
+
+$keystone_admin_token      = '999888777666'
+$keystone_admin_user       = 'admin'
+$keystone_admin_tenant     = 'admin'
+$keystone_admin_password   = 'secrete'
+$keystone_db_user          = 'keystone'
+$keystone_db_password      = 'keystone_dba'
+$keystone_db_dbname        = 'keystone'
+
+$glance_db_user            = 'glance'
+$glance_db_password        = 'glance_dba'
+$glance_db_dbname          = 'glance'
+$glance_user_password      = $glance_db_password
+
+$nova_db_user              = 'nova'
+$nova_db_password          = 'nova_dba'
+$nova_db_dbname            = 'nova'
+$nova_user_password        = 'secrete'
+$nova_admin_tenant         = 'services'
+$nova_admin_user           = 'nova'
+$purge_nova_config         = false
+
+$cinder                    = true
+$cinder_db_user            = 'cinder'
+$cinder_db_password        = 'cinder_dba'
+$cinder_db_dbname          = 'cinder'
+
+$quantum                   = true
+$quantum_db_user           = 'quantum'
+$quantum_db_password       = $quantum_admin_password
+$quantum_db_dbname         = 'quantum'
+$quantum_sql_connection    = "mysql://${quantum_db_user}:${quantum_db_password}@${db_host}/${quantum_db_dbname}?charset=utf8"
+
+$region                    = 'RegionOne'
+
+$linux_bridge                     = true
+$linux_bridge_tenant_network_type = 'vlan'
+$linux_bridge_network_vlan_ranges = "physnet1:1000:2999"
+$linux_bridge_physical_interface  = 'eth1'
+$linux_bridge_physical_interface_mappings = 'physnet1:eth1'
+
+#### end shared variables #################
+
+
+# multi-node specific parameters
+
+$keystone_host_address   = '10.0.5.4'
+$keystone_host_public    = $keystone_host_address
+$keystone_host_internal  = $keystone_host_address
+$keystone_auth_url       = "http://${keystone_host_public}:5000/v2.0/"
+
+$glance_host_address  = '10.0.5.4'
+$glance_host_public   = $glance_host_address
+$glance_host_internal = $glance_host_address
+
+$quantum_host_address  = '10.0.5.6'
+$quantum_host_public   = $quantum_host_address
+$quantum_host_internal = $quantum_host_address
+
+
+$fixed_network_range  = '10.106.0.0/16' # DODCS: What is reasonable value?
+
+
+$cinder_host_address  = '10.0.5.5'
+$cinder_host_public   = $cinder_host_address
+$cinder_host_internal = $cinder_host_address
+
+$nova_host_address   = '10.0.5.3'
+$nova_host_public    = $nova_host_address
+$nova_host_internal  = $nova_host_address
+$nova_sql_connection = "mysql://${nova_db_user}:${nova_db_password}@${db_host}/nova"
+
+$quantum_server_host = $nova_host_address
+
+$rabbit_host = '10.0.5.3'
+#$rabbbit_connection = '10.67.0.1' # this is the bridge on bespin103
+$rabbit_connection = $rabbit_host
+
+
+#import 'nova-controller-node.pp'
+# Resources for a keystone contoller node
+node 'bespin103.east.isi.edu' {
+  #  import 'nova-controller-config.pp'
+  # Configure the Nova controller services.
+
+  $enabled = true
+  
+  # Install / configure rabbitmq
+  class { 'nova::rabbitmq':
+    userid        => $rabbit_user,
+    password      => $rabbit_password,
+    enabled       => $enabled,
+    virtual_host  => $rabbit_virtual_host,
+  }
+
+  # Configure Nova
+  class { 'nova':
+    sql_connection         => $nova_sql_connection,
+    rabbit_userid          => $rabbit_user,
+    rabbit_password        => $rabbit_password,
+    rabbit_virtual_host    => $rabbit_virtual_host,
+    image_service          => 'nova.image.glance.GlanceImageService',
+    glance_api_servers     => "${glance_host_public}:9292",
+    verbose                => $verbose,
+    rabbit_host            => $rabbit_connection,
+    nova_admin_tenant_name => $nova_admin_tenant,
+    nova_admin_user        => $nova_admin_user,
+    nova_admin_password    => $nova_user_password,
+  }
+
+  # Configure nova-api
+  class { 'nova::api':
+    enabled           => $enabled,
+    admin_password    => $nova_user_password,
+    auth_host         => $keystone_host_public,
+  }
+
+  class { 'nova::vncproxy':
+    enabled => true,
+    host    => $nova_host_internal,
+  }
+
+  class { 'nova::compute::quantum':
+    # DODCS Begin
+    libvirt_vif_driver => 'nova.virt.libvirt.vif.QuantumLinuxBridgeVIFDriver',
+    linuxnet_interface_driver => 'nova.network.linux_net.QuantumLinuxBridgeInterfaceDriver',
+    # DODCS End
+  }
+  # DODCS
+
+  # Set up Quantum
+  class { 'quantum':
+    verbose         => $verbose,
+    debug           => $verbose,
+    rabbit_host     => $rabbit_host, # DODCS
+    rabbit_user     => $rabbit_user,
+    rabbit_password => $rabbit_password,
+    core_plugin     => 'quantum.plugins.linuxbridge.lb_quantum_plugin.LinuxBridgePluginV2', # DODCS
+    rpc_backend      =>'quantum.openstack.common.rpc.impl_kombu',
+    api_paste_config => '/etc/quantum/api-paste.ini',
+  }
+
+  class { 'quantum::server':
+    auth_password => $quantum_admin_password,     # DODCS
+    auth_user     => $quantum_admin_username,     # DODCS
+    auth_tenant   => $quantum_admin_tenant_name,  # DODCS
+  }
+
+  class { 'quantum::agents::dhcp':
+    # DODCS Begin
+    quantum_username => $quantum_admin_username,
+    quantum_password => $quantum_admin_password,
+    quantum_admin_tenant => $quantum_admin_tenant_name,
+    keystone_auth_url => $keystone_auth_url,
+    interface_driver => 'quantum.agent.linux.interface.BridgeInterfaceDriver',
+    use_namespaces   => 'False',
+    debug            => $verbose,
+    enabled          => false,
+    # DODCS End
+  }
+
+  ## DODCS Begin
+  class { 'quantum::agents::l3':
+    interface_driver        => 'quantum.agent.linux.interface.BridgeInterfaceDriver',
+    use_namespaces          => 'False',
+    external_network_bridge => undef,
+    metadata_ip             => '127.0.0.1',
+    auth_password           => $quantum_admin_password,
+    auth_user               => $quantum_admin_username,
+    auth_tenant             => $quantum_admin_tenant_name,
+    enabled                 => false,
+    debug                   => $verbose,
+  }
+
+  class { 'quantum::plugins::linuxbridge':
+    sql_connection              => $quantum_sql_connection,
+    tenant_network_type         => $linux_bridge_tenant_network_type,
+    network_vlan_ranges         => $linux_bridge_network_vlan_ranges,
+    physical_interface          => $linux_bridge_physical_interface,
+    physical_interface_mappings => $linux_bridge_physical_interface_mappings,
+  }
+
+  class { 'quantum::agents::linuxbridge':
+    enabled => false,
+  }
+
+  class { 'quantum::plugins::server':
+    quantum_password  => $quantum_admin_password,
+    mysql_root        => $mysql_root_password,
+    plugin            => 'linuxbridge',
+    vlan              => $linux_bridge_physical_interface,
+    user              => $quantum_admin_username,
+    tenant            => $quantum_admin_tenant_name,
+    auth_url          => $keystone_auth_url,
+  }
+
+
+  #    Class['quantum::agents::l3_server_setup'] ~> Class['quantum::agents::l3']
+
+  # Because the quantum::agents::l3 class  doesn't stick?
+  class { 'quantum::agents::l3_server_setup':
+    auth_password           => $quantum_admin_password,
+    auth_user               => $quantum_admin_username,
+    auth_tenant             => $quantum_admin_tenant_name,
+    linux_plugin            => 'linuxbridge',
+    auth_url                => $keystone_auth_url,
+  }
+
+  ##DODCS End
+
+  class { 'nova::network::quantum':
+    fixed_range               => $fixed_network_range,         # DODCS: Correct place? Even used in Folsom with Quantum?
+    quantum_admin_password    => $quantum_admin_password,      # DODCS
+    #$use_dhcp                  = 'True',
+    #$public_interface          = undef,
+    quantum_connection_host   => $quantum_server_host,
+    quantum_auth_strategy     => 'keystone',
+    quantum_url               => "http://${quantum_server_host}:9696",
+    quantum_admin_tenant_name => $quantum_admin_tenant_name,   # DODCS
+    quantum_admin_username    => $quantum_admin_username,      # DODCS
+    quantum_admin_auth_url    => "http://${keystone_host_public}:35357/v2.0",
+  }
+
+  # a bunch of nova services that require no configuration
+  class { [
+           'nova::scheduler',
+           'nova::objectstore',
+           'nova::cert',
+           'nova::consoleauth'
+           ]:
+             enabled => $enabled,
+  }
+
+  if $vnc_enabled {
+    class { 'nova::vncproxy':
+      host    => $public_address,
+      enabled => $enabled,
+    }
+  }
+  
+  #  Class['openstack::nova::controller'] -> Class['openstack::auth_file']
+
+  class { 'openstack::auth_file':
+    admin_user           => $keystone_admin_user,
+    admin_tenant         => $keystone_admin_tenant,
+    controller_node      => $keystone_host_address,
+    admin_password       => $keystone_admin_password,
+    keystone_admin_token => $keystone_admin_token,
+  }
+
+
+}
+
+
+#import 'keystone-glance-node.pp'
+# Resources for a keystone contoller node
+node 'bespin104.east.isi.edu' {
+
+  #  import 'keystone-config.pp'
+  # Class to create keystone endpoints
+
+  ####### KEYSTONE ###########
+  class { 'openstack::keystone':
+    verbose               => $verbose,
+    db_type               => $db_type,
+    db_host               => $db_host,
+    db_password           => $keystone_db_password,
+    db_name               => $keystone_db_dbname,
+    db_user               => $keystone_db_user,
+    admin_token           => $keystone_admin_token,
+    admin_tenant          => $keystone_admin_tenant,
+    admin_email           => $admin_email,
+    admin_password        => $keystone_admin_password,
+    public_address        => $keystone_host_public,
+    internal_address      => $keystone_host_private,
+    admin_address         => $keystone_host_public,
+    region                => $region,
+    glance_user_password  => $glance_db_password,
+    nova_user_password    => $nova_user_password,
+    cinder                => $cinder,
+    cinder_user_password  => $cinder_db_password,
+    quantum               => $quantum,
+    quantum_user_password => $quantum_db_password,
+    enabled               => $keystone,
+    # Multi-node
+    glance_public_address    => $glance_host_public,
+    glance_internal_address  => $glance_host_internal,
+    glance_admin_address     => $glance_host_public,
+    nova_public_address      => $nova_host_public,
+    nova_internal_address    => $nova_host_internal,
+    nova_admin_address       => $nova_host_public,
+    cinder_public_address    => $cinder_host_public,
+    cinder_internal_address  => $cinder_host_internal,
+    cinder_admin_address     => $cinder_host_public,
+    quantum_public_address   => $quantum_server_host,
+    quantum_internal_address => $quantum_server_host,
+    quantum_admin_address    => $quantum_server_host,
+  }
+
+
+  #  import 'glance-config.pp'
+
+  # Configuration for a glance service
+
+  ######## BEGIN GLANCE ##########
+  class { 'openstack::glance':
+    verbose                   => $verbose,
+    db_type                   => $db_type,
+    db_host                   => $db_host,
+    glance_db_user            => $glance_db_user,
+    glance_db_dbname          => $glance_db_dbname,
+    glance_db_password        => $glance_db_password,
+    glance_user_password      => $glance_user_password,
+    enabled                   => $enabled,
+    keystone_host             => $keystone_host_public,
+    auth_uri                  => "http://${keystone_host}:5000/v2.0/",
+  }
+
+  Class['openstack::keystone'] -> Class['openstack::auth_file']
+
+  class { 'openstack::auth_file':
+    admin_user           => $keystone_admin_user,
+    admin_tenant         => $keystone_admin_tenant,
+    controller_node      => $keystone_host_address,
+    admin_password       => $keystone_admin_password,
+    keystone_admin_token => $keystone_admin_token,
+  }
+
+
+}
+#import 'cinder-node.pp'
+# Resources for a keystone contoller node
+
+node 'bespin105.east.isi.edu' {
+
+  class { 'cinder::base':
+    rabbit_userid   => $rabbit_user, #'openstack_rabbit_user', #$cinder_rabbit_user,
+    rabbit_host     => $rabbit_host, #'10.0.5.5', #$cinder_rabbit_host,
+    rabbit_password => $rabbit_password, #'dbsecrete', #$cinder_rabbit_password,
+    sql_connection  => "mysql://${cinder_db_user}:${cinder_db_password}@${db_host}/${cinder_db_dbname}?charset=utf8",
+    admin_user      => $cinder_db_user,
+    admin_password  => $cinder_db_password,
+    auth_host       => $keystone_host_public,
+    auth_port       => '35357',
+    auth_protocol   => 'http',
+    signing_dirname => '/tmp/keystone-signing-cinder',
+    rootwrap_config => '/etc/cinder/rootwrap.conf',
+    volumes_dir     => '/etc/cinder/volumes',
+    state_path      => '/var/lib/cinder',
+    lock_path       => '/var/lib/cinder/tmp',
+    logdir          => '/var/log/cinder',
+    rpc_backend     => 'cinder.openstack.common.rpc.impl_kombu',
+    verbose         => $verbose,
+  }
+
+  class { 'cinder::api':
+    keystone_password      => $keystone_admin_password,
+    keystone_enabled       => true,
+    keystone_tenant        => $keystone_admin_tenant,
+    keystone_user          => $keystone_admin_user, 
+    keystone_auth_host     => $keystone_host_public,
+    keystone_auth_port     => '35357',
+    keystone_auth_protocol => 'http',
+    package_ensure         => 'present',
+    bind_host              => '0.0.0.0',
+  }
+
+  class { 'cinder::scheduler':
+    package_ensure => present,
+  }
+  
+  class { 'openstack::auth_file':
+    admin_user           => $keystone_admin_user,
+    admin_tenant         => $keystone_admin_tenant,
+    controller_node      => $keystone_host_address,
+    admin_password       => $keystone_admin_password,
+    keystone_admin_token => $keystone_admin_token,
+  }
+
+  Class['openstack::auth_file'] -> Class['cinder::base']
+}
+
+node 'bespin106.east.isi.edu' {
+  
+  #  import 'quantum-agent-config.pp'
+  class { 'quantum':
+    verbose          => $verbose,
+    debug            => $verbose,
+    rabbit_host      => $rabbit_host, # DODCS
+    rabbit_user      => $rabbit_user,
+    rabbit_password  => $rabbit_password,
+    core_plugin      => 'quantum.plugins.linuxbridge.lb_quantum_plugin.LinuxBridgePluginV2', # DODCS
+    rpc_backend      =>'quantum.openstack.common.rpc.impl_kombu',
+    api_paste_config => '/etc/quantum/api-paste.ini',
+  }
+
+  class { 'quantum::agents::dhcp':
+    # DODCS Begin
+    quantum_username => $quantum_admin_username,
+    quantum_password => $quantum_admin_password,
+    quantum_admin_tenant => $quantum_admin_tenant_name,
+    keystone_auth_url => $keystone_auth_url,
+    interface_driver => 'quantum.agent.linux.interface.BridgeInterfaceDriver',
+    use_namespaces   => 'False',
+    debug            => $verbose,
+    # DODCS End
+  }
+
+  ## DODCS Begin
+  class { 'quantum::agents::l3':
+    interface_driver        => 'quantum.agent.linux.interface.BridgeInterfaceDriver',
+    use_namespaces          => 'False',
+    external_network_bridge => undef,
+    metadata_ip             => '127.0.0.1',
+    auth_password           => $quantum_admin_password,
+    auth_user               => $quantum_admin_username,
+    auth_tenant             => $quantum_admin_tenant_name,
+    debug                   => $verbose,
+  }
+
+  class { 'quantum::plugins::linuxbridge':
+    sql_connection              => $quantum_sql_connection,
+    tenant_network_type         => $linux_bridge_tenant_network_type,
+    network_vlan_ranges         => $linux_bridge_network_vlan_ranges,
+    physical_interface          => $linux_bridge_physical_interface,
+    physical_interface_mappings => $linux_bridge_physical_interface_mappings,
+  }
+
+  class { 'quantum::agents::linuxbridge': }
+
+  class { 'quantum::plugins::agents-setup':
+    quantum_password  => $quantum_admin_password,
+    plugin            => 'linuxbridge',
+    vlan              => $linux_bridge_physical_interface,
+    user              => $quantum_admin_username,
+    tenant            => $quantum_admin_tenant_name,
+    auth_url          => $keystone_auth_url,
+  }
+
+  
+  class { 'openstack::auth_file':
+    admin_user           => $keystone_admin_user,
+    admin_tenant         => $keystone_admin_tenant,
+    controller_node      => $keystone_host_address,
+    admin_password       => $keystone_admin_password,
+    keystone_admin_token => $keystone_admin_token,
+  }
+
+# Because the quantum::agents::l3 class  doesn't stick?
+  class { 'quantum::agents::l3_server_setup':
+      auth_password           => $quantum_admin_password,
+      auth_user               => $quantum_admin_username,
+      auth_tenant             => $quantum_admin_tenant_name,
+      linux_plugin            => 'linuxbridge',
+      auth_url                => $keystone_auth_url,
+    }
+}
+
+#node /bespin10[67].east.isi.edu/ {
+node 'bespin107.east.isi.edu' {
+
+  class { 'openstack::compute':
+#    internal_address       => '10.105.1.201', # What is this?
+    internal_address       => $nova_host_internal,
+    nova_user_password     => $nova_user_password,
+    rabbit_password        => $rabbit_password,
+    sql_connection         => $nova_sql_connection,
+    public_interface       => $public_interface,
+    private_interface      => $private_interface,
+    fixed_range            => $fixed_network_range,     # Nova Network (Ignored for Quatum?)
+    network_manager        => 'nova.network.manager.FlatDHCPManager', # diddi
+    network_config         => {},
+    multi_host             => false,
+    quantum                => $quantum,
+    quantum_sql_connection => $quantum_sql_connection,
+    quantum_host           => $quantum_server_host,
+    quantum_user_password  => $quantum_db_password,
+    keystone_host          => $keystone_host_public,
+    purge_nova_config      => false,
+    rabbit_host            => $rabbit_host,
+    rabbit_user            => $rabbit_user,
+    rabbit_virtual_host    => $rabbit_virtual_host,
+    glance_api_servers     => "${glance_host_public}:9292",
+    libvirt_type           => 'kvm',
+    vnc_enabled            => true,
+    vncproxy_host          => $nova_host_internal,
+    vncserver_listen       => $nova_host_internal,
+    cinder                 => false,
+    cinder_sql_connection  => "mysql://${cinder_db_user}:${cinder_db_password}@${db_host}/${cinder_db_name}",
+    manage_volumes         => false,
+    nova_volume            => 'cinder-volumes',
+    iscsi_ip_address       => $cinder_host_public,
+    migration_support      => false,
+    verbose                => $verbose,
+    enabled                => true,
+    nova_admin_tenant_name => $nova_admin_tenant,
+    nova_admin_user        => $nova_admin_user,
+    nova_admin_password    => $nova_user_password,
+
+  }
+
+  Class['openstack::compute'] -> Class['quantum::agents::l3_server_setup']
+  
+# Because the quantum::agents::l3 class  doesn't stick?
+  class { 'quantum::agents::l3_server_setup':
+      auth_password           => $quantum_admin_password,
+      auth_user               => $quantum_admin_username,
+      auth_tenant             => $quantum_admin_tenant_name,
+      linux_plugin            => 'linuxbridge',
+      auth_url                => $keystone_auth_url,
+    }
+  class { 'openstack::auth_file':
+    admin_user           => $keystone_admin_user,
+    admin_tenant         => $keystone_admin_tenant,
+    controller_node      => $keystone_host_address,
+    admin_password       => $keystone_admin_password,
+    keystone_admin_token => $keystone_admin_token,
+  }
+}

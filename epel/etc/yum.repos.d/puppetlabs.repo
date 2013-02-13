@@ -1,0 +1,11 @@
+[puppetlabsproduct]
+name=Puppet Labs Packages
+baseurl=http://yum.puppetlabs.com/el/6/products/x86_64/
+gpgcheck=0
+enabled=1
+
+[puppetlabsdeps]
+name=Puppet Labs Packages
+baseurl=http://yum.puppetlabs.com/el/6/dependencies/x86_64/
+gpgcheck=0
+enabled=1

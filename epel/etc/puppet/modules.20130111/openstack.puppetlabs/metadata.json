@@ -1,0 +1,75 @@
+{
+  "dependencies": [
+    {
+      "version_requirement": ">= 1.0.0",
+      "name": "puppetlabs/glance"
+    },
+    {
+      "version_requirement": ">= 1.0.0",
+      "name": "puppetlabs/horizon"
+    },
+    {
+      "version_requirement": ">= 1.0.1",
+      "name": "puppetlabs/keystone"
+    },
+    {
+      "version_requirement": ">= 2.0.2",
+      "name": "saz/memcached"
+    },
+    {
+      "version_requirement": ">= 0.5.0",
+      "name": "puppetlabs/mysql"
+    },
+    {
+      "version_requirement": ">= 1.0.1",
+      "name": "puppetlabs/nova"
+    },
+    {
+      "version_requirement": ">= 1.0.1",
+      "name": "puppetlabs/cinder"
+    }
+  ],
+  "license": "Apache License 2.0",
+  "version": "1.0.3",
+  "description": "Module to install common openstack-essex configurations using puppet",
+  "types": [
+
+  ],
+  "summary": "Puppet Labs Openstack Module for folsom",
+  "source": "https://github.com/puppetlabs/puppetlabs-openstack",
+  "checksums": {
+    "tests/cloudcontroller.pp": "ece101d95b65cc59f5ba40c5542668fb",
+    "spec/spec_helper.rb": "0db89c9a486df193c0e40095422e19dc",
+    "manifests/compute.pp": "4748b27130b72320de7bd8398802a9a2",
+    "CHANGELOG": "979b03bdfe1e9a5725e50b3b29041a5d",
+    "tests/compute.pp": "4de98f8e632aa6f891004eb8bc8e0204",
+    "LICENSE": "0e5ccf641e613489e66aa98271dbe798",
+    "spec/fixtures/manifests/site.pp": "d41d8cd98f00b204e9800998ecf8427e",
+    "manifests/nova/controller.pp": "81b9b95a7763c804dc3e41ec6582b2d0",
+    "manifests/glance.pp": "1fe8c292e65f115243f5cebd226c0597",
+    "manifests/all.pp": "988ef8a566d1def74bd57b12ccf634b7",
+    "tests/all.pp": "e7b5f92f108233a4efb88a860c75ca71",
+    "README.md": "e0e0b6b79dd5b068b04954c0c43ed990",
+    "README.dev.md": "4f5baeaebb75e7130037591797295b18",
+    "Rakefile": "81f4f001979321f7e070b5bbdc0b6771",
+    "templates/test_nova.sh.erb": "88f037d22864a52905613b90df722921",
+    "other_repos.yaml": "6e15c760790836db5772800913e7cb20",
+    "manifests/test_file.pp": "71f20bee30301a9722daf7c092748f46",
+    "manifests/swift/proxy.pp": "db15320efa5fb96dc749f1285a53a779",
+    "manifests/controller.pp": "0be36bbd1bc1f57d6f4a9e9960b5085a",
+    "manifests/swift/storage-node.pp": "39450197b234ea147ce67bb668ad6551",
+    "manifests/cinder.pp": "8394181b6961a1417ed8a12fd33122c2",
+    "spec/classes/openstack_compute_spec.rb": "8421867b733d80e4eb73f728a1a569b4",
+    "spec/classes/openstack_all_spec.rb": "3f3e744ccaf88cef00e41aaa5b483cc7",
+    "manifests/keystone.pp": "fb0fa1cb1009a6c069bb78e34cae1efb",
+    "manifests/db/mysql.pp": "a95edd21791ef5eb86613014b892f2b1",
+    "spec/classes/openstack_controller_spec.rb": "50065a27c57787872eaebfbe3a6928b1",
+    "Modulefile": "64b797f7ba337a5dec12cd990fe23ef2",
+    "manifests/horizon.pp": "9ecb0ad1320874f9093417cd3f7eb9f8",
+    "manifests/auth_file.pp": "9d7229ee3ad328d28d3c59639cd33f5f",
+    "examples/site.pp": "3cbc10f300651d4c4bd62ab1f760a10c"
+  },
+  "author": "Puppet Labs",
+  "name": "puppetlabs-openstack",
+  "project_page": "https://github.com/puppetlabs/puppetlabs-openstack"
+}
