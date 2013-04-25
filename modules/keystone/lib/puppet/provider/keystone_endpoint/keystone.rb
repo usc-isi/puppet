@@ -93,18 +93,19 @@ Puppet::Type.type(:keystone_endpoint).provide(
       hash = {}
 
       # DODCS: endpoint-list not implemented in this version
-      # list_keystone_objects('endpoint', 5).each do |endpoint|
-      #   service_id   = get_service_id(endpoint[0])
-      #   service_name = get_keystone_object('service', service_id, 'name')
-      #   hash[service_name] = {
-      #     :id           => endpoint[0],
-      #     :region       => endpoint[1],
-      #     :public_url   => endpoint[2],
-      #     :internal_url => endpoint[3],
-      #     :admin_url    => endpoint[4],
-      #     :service_id   => service_id
-      #   }
-      # end
+      # DODCS: Above comment may have been Essex-specific....
+      list_keystone_objects('endpoint', 5).each do |endpoint|
+        service_id   = get_service_id(endpoint[0])
+        service_name = get_keystone_object('service', service_id, 'name')
+        hash[service_name] = {
+          :id           => endpoint[0],
+          :region       => endpoint[1],
+          :public_url   => endpoint[2],
+          :internal_url => endpoint[3],
+          :admin_url    => endpoint[4],
+          :service_id   => service_id
+        }
+      end
 
       hash
     end

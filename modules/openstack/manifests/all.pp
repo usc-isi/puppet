@@ -87,8 +87,12 @@ class openstack::all(
   $keystone_cata_type   = 'template',
   $iscsi_ip_address     = 'localhost',
   $package_ensure       = 'present',
+# DODCS
+  $glance_host          = '127.0.0.1',
+  $keystone_host        = '127.0.0.1',
   # Extra nova configurations for Folsom
-  $folsom_nova_conf     = {}
+#  $folsom_nova_conf     = {}
+  $folsom_nova_conf
 ) {
 
 
@@ -142,8 +146,9 @@ class openstack::all(
 
   # DODCS Added to create here instead of keystone::roles::admin
   class { 'openstack::auth_file':
-    admin_password       => 'secrete',
+    admin_password       => $admin_password,
     keystone_admin_token => $keystone_admin_token,
+# DODCS: Are these defaults reasonable?
     admin_user           => 'admin',
     admin_tenant         => 'admin',
     ec2_port             => '8773',

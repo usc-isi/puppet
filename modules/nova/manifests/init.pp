@@ -52,7 +52,8 @@ class nova(
   $root_helper = $::nova::params::root_helper,
   $package_ensure = 'present',
   $nova_ca_path = '/var/lib/nova/CA',
-  $folsom_nova_conf = {}
+#  $folsom_nova_conf = {}
+  $folsom_nova_conf
 ) inherits nova::params {
 
   # all nova_config resources should be applied
@@ -138,6 +139,62 @@ class nova(
   }
 
   
+  # DODCS Folsom: Add new Folsom values to nova.conf.
+  # Should be a better way, but I don't know it yet.
+  nova_config {
+    'allow_resize_to_same_host': value => $folsom_nova_conf['allow_resize_to_same_host'];
+    'buckets_path': value => $folsom_nova_conf['buckets_path'];
+    'compute_driver': value => $folsom_nova_conf['compute_driver'];
+    'compute_scheduler_driver': value => $folsom_nova_conf['compute_scheduler_driver'];
+    'ec2_dmz_host': value => $folsom_nova_conf['ec2_dmz_host'];
+    'ec2_private_dns_show_ip': value => $folsom_nova_conf['ec2_private_dns_show_ip'];
+    'fixed_ip_disassociate_timeout': value => $folsom_nova_conf['fixed_ip_disassociate_timeout'];
+    'flat_network_dns': value => $folsom_nova_conf['flat_network_dns'];
+    'instance_name_template': value => $folsom_nova_conf['instance_name_template'];
+    'instance_type_extra_specs': value => $folsom_nova_conf['instance_type_extra_specs'];
+    'instances_path': value => $folsom_nova_conf['instances_path'];
+    'keystone_ec2_url': value => $folsom_nova_conf['keystone_ec2_url'];
+    'libvirt_use_virtio_for_bridges': value => $folsom_nova_conf['libvirt_use_virtio_for_bridges'];
+    'logging_context_format_string': value => $folsom_nova_conf['logging_context_format_string'];
+    'max_nbd_devices': value => $folsom_nova_conf['max_nbd_devices'];
+    'multi_host': value => $folsom_nova_conf['multi_host'];
+    'my_ip': value => $folsom_nova_conf['my_ip'];
+    'network_size': value => $folsom_nova_conf['network_size'];
+    'networks_path': value => $folsom_nova_conf['networks_path'];
+    'osapi_compute_extension': value => $folsom_nova_conf['osapi_compute_extension'];
+    'periodic_interval': value => $folsom_nova_conf['periodic_interval'];
+    'pybasedir': value => $folsom_nova_conf['pybasedir'];
+    'quota_cores': value => $folsom_nova_conf['quota_cores'];
+    'quota_gigabytes': value => $folsom_nova_conf['quota_gigabytes'];
+    'quota_ram': value => $folsom_nova_conf['quota_ram'];
+    'quota_volumes': value => $folsom_nova_conf['quota_volumes'];
+    'rootwrap_config': value => $folsom_nova_conf['rootwrap_config'];
+    'send_arp_for_ha': value => $folsom_nova_conf['send_arp_for_ha'];
+    'states_path': value => $folsom_nova_conf['states_path'];
+    'vlan_interface': value => $folsom_nova_conf['vlan_interface'];
+    'volume_name_template': value => $folsom_nova_conf['volume_name_template'];
+    'xvpvncproxy_base_url': value => $folsom_nova_conf['xvpvncproxy_base_url'];
+  }
+
+  if has_key($folsom_nova_conf, 'libvirt_inject_password') {
+    nova_config {
+      'libvirt_inject_password': value => $folsom_nova_conf['libvirt_inject_password'];
+    }
+  }
+
+  # This will be present for lxc environments.
+  if has_key($folsom_nova_conf,'use_cow_images') {
+    nova_config {
+      'use_cow_images': value => $folsom_nova_conf['use_cow_images'];
+      }
+  }
+  # if $use_cow_images != undef {
+  #   nova_config {
+  #     'use_cow_images': value => $use_cow_images;
+  #   }
+  # }
+
+  
   # both the sql_connection and rabbit_host are things
   # that may need to be collected from a remote host
   if $sql_connection {
@@ -190,84 +247,6 @@ class nova(
     'root_helper': value => $root_helper;
     'ca_path': value => $nova_ca_path;
   }
-
-  
-#   # DODCS Folsom
-#   # Should be a better way, but I don't know it yet.
-#   $allow_resize_to_same_host = $folsom_nova_conf['allow_resize_to_same_host']
-#   $buckets_path = $folsom_nova_conf['buckets_path']
-#   $compute_driver = $folsom_nova_conf['compute_driver']
-#   $compute_scheduler_driver = $folsom_nova_conf['compute_scheduler_driver']
-#   $ec2_dmz_host = $folsom_nova_conf['ec2_dmz_host']
-#   $ec2_private_dns_show_ip = $folsom_nova_conf['ec2_private_dns_show_ip']
-#   $fixed_ip_disassociate_timeout = $folsom_nova_conf['fixed_ip_disassociate_timeout']
-#   $flat_network_dns = $folsom_nova_conf['flat_network_dns']
-#   $instance_name_template = $folsom_nova_conf['instance_name_template']
-#   $instance_type_extra_specs = $folsom_nova_conf['instance_type_extra_specs']
-#   $instances_path = $folsom_nova_conf['instances_path']
-#   $keystone_ec2_url = $folsom_nova_conf['keystone_ec2_url']
-#   $libvirt_use_virtio_for_bridges = $folsom_nova_conf['libvirt_use_virtio_for_bridges']
-#   $logging_context_format_string = $folsom_nova_conf['logging_context_format_string']
-#   $max_nbd_devices = $folsom_nova_conf['max_nbd_devices']
-#   $multi_host = $folsom_nova_conf['multi_host']
-#   $my_ip = $folsom_nova_conf['my_ip']
-#   $network_size = $folsom_nova_conf['network_size']
-#   $networks_path = $folsom_nova_conf['networks_path']
-#   $osapi_compute_extension = $folsom_nova_conf['osapi_compute_extension']
-# #  $periodic_interval = $folsom_nova_conf['periodic_interval']
-#   $pybasedir = $folsom_nova_conf['pybasedir']
-#   $quota_cores = $folsom_nova_conf['quota_cores']
-#   $quota_gigabytes = $folsom_nova_conf['quota_gigabytes']
-#   $quota_ram = $folsom_nova_conf['quota_ram']
-#   $quota_volumes = $folsom_nova_conf['quota_volumes']
-#   $rootwrap_config = $folsom_nova_conf['rootwrap_config']
-#   $send_arp_for_ha = $folsom_nova_conf['send_arp_for_ha']
-#   $states_path = $folsom_nova_conf['states_path']
-#   $vlan_interface = $folsom_nova_conf['vlan_interface']
-#   $volume_name_template = $folsom_nova_conf['volume_name_template']
-#   $use_cow_images = $folsom_nova_conf['use_cow_images']
-#   $xvpvncproxy_base_url = $folsom_nova_conf['xvpvncproxy_base_url']
-
-#   nova_config {
-#     'allow_resize_to_same_host': value => $allow_resize_to_same_host;
-#     'buckets_path': value => $buckets_path;
-#     'compute_driver': value => $compute_driver;
-#     'compute_scheduler_driver': value => $compute_scheduler_driver;
-#     'ec2_dmz_host': value => $ec2_dmz_host;
-#     'ec2_private_dns_show_ip': value => $ec2_private_dns_show_ip;
-#     'fixed_ip_disassociate_timeout': value => $fixed_ip_disassociate_timeout;
-#     'flat_network_dns': value => $flat_network_dns;
-#     'instance_name_template': value => $instance_name_template;
-#     'instance_type_extra_specs': value => $instance_type_extra_specs;
-#     'instances_path': value => $instances_path;
-#     'keystone_ec2_url': value => $keystone_ec2_url;
-#     'libvirt_use_virtio_for_bridges': value => $libvirt_use_virtio_for_bridges;
-#     'logging_context_format_string': value => $logging_context_format_string;
-#     'max_nbd_devices': value => $max_nbd_devices;
-#     'multi_host': value => $multi_host;
-#     'my_ip': value => $my_ip;
-#     'network_size': value => $network_size;
-#     'networks_path': value => $networks_path;
-#     'osapi_compute_extension': value => $osapi_compute_extension;
-#     'periodic_interval': value => $periodic_interval;
-#     'pybasedir': value => $pybasedir;
-#     'quota_cores': value => $quota_cores;
-#     'quota_gigabytes': value => $quota_gigabytes;
-#     'quota_ram': value => $quota_ram;
-#     'quota_volumes': value => $quota_volumes;
-#     'rootwrap_config': value => $rootwrap_config;
-#     'send_arp_for_ha': value => $send_arp_for_ha;
-#     'states_path': value => $states_path;
-#     'vlan_interface': value => $vlan_interface;
-#     'volume_name_template': value => $volume_name_template;
-#     'xvpvncproxy_base_url': value => $xvpvncproxy_base_url;
-#   }
-
-#   if $use_cow_images != undef {
-#     nova_config {
-#       'use_cow_images': value => $use_cow_images;
-#     }
-#   }
 
   exec { 'post-nova_config':
     command => '/bin/echo "Nova config has changed"',

@@ -46,6 +46,9 @@
 class openstack::compute(
   $private_interface,
   $internal_address,
+  # DODCS
+  $folsom_nova_conf,
+  # End DODCS
   # networking config
   $public_interface    = undef,
   $fixed_range         = '10.0.0.0/16',
@@ -76,6 +79,7 @@ class openstack::compute(
     image_service      => 'nova.image.glance.GlanceImageService',
     glance_api_servers => $glance_api_servers,
     verbose            => $verbose,
+    folsom_nova_conf   => $folsom_nova_conf,
   }
 
   class { 'nova::compute':
@@ -109,9 +113,9 @@ class openstack::compute(
     }
   } else {
     $enable_network_service = false
-    nova_config {
-      'multi_host':   value => 'False';
-    }
+    # nova_config {
+    #   'multi_host':   value => 'False';
+    # }
   }
 
   # set up configuration for networking

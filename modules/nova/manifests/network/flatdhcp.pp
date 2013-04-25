@@ -26,4 +26,5 @@ class nova::network::flatdhcp (
     'dhcpbridge_flagfile': value => $dhcpbridge_flagfile;
   }
 
+  notify { "fixed_range value = ${fixed_range}": }
 }

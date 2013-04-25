@@ -117,7 +117,8 @@ registry_client_protocol = http
 # registry server. Any valid SQLAlchemy connection string is fine.
 # See: http://www.sqlalchemy.org/docs/05/reference/sqlalchemy/connections.html#sqlalchemy.create_engine
 #sql_connection = sqlite:///glance.sqlite
-sql_connection = mysql://glance:glance_dba@127.0.0.1/glance
+#sql_connection = mysql://glance:<%= glance_db_password %>@127.0.0.1/glance
+sql_connection = mysql://glance:<%= glance_db_password %>@<%= glance_host %>/glance
 
 # Period in seconds after which SQLAlchemy should reestablish its connection
 # to the database.

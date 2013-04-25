@@ -37,6 +37,12 @@ class openstack::controller(
   $public_interface,
   $private_interface,
   $internal_address,
+  # DODCS
+  $folsom_nova_conf,
+  $keystone_host,
+  $glance_host,
+  $keystone_cata_type      = 'template',
+  # End DODCS
   $admin_address           = $internal_address,
   # connection information
   $mysql_root_password     = 'sql_pass',
@@ -65,7 +71,12 @@ class openstack::controller(
   $network_config          = {},
   # I do not think that this needs a bridge?
   $verbose                 = false,
-  $export_resources        = true
+  $export_resources        = true,
+  # DODCS
+  $mysql_bind_address      = '0.0.0.0',
+  $allowed_hosts           = '%',
+  $package_ensure          = 'present'
+  # End DODCS
 ) {
 
   $glance_api_servers = "${internal_address}:9292"
@@ -97,66 +108,102 @@ class openstack::controller(
       # the priv grant fails on precise if I set a root password
       # TODO I should make sure that this works
       # 'root_password' => $mysql_root_password,
-      'bind_address'  => '0.0.0.0'
+#      'bind_address'  => '0.0.0.0',
+      'bind_address'         => $mysql_bind_address,
+      # DODCS
+      'root_password'        => $mysql_root_password,
+#      'bind_address'         => '127.0.0.1',
+      # kyao: configure to use latin1 character set
+      'default_engine'       => 'InnoDB',
+      'character_set_server' => 'latin1'
+      # End DODCS
     }
   }
+
   # set up all openstack databases, users, grants
   class { 'keystone::db::mysql':
-    password => $keystone_db_password,
+    password      => $keystone_db_password,
+# DODCS Folsom
+    allowed_hosts => $allowed_hosts,
+    host          => $keystone_host,
+# End DODCS Folsom
   }
+
+  # DODCS TODO: Is localhost reasonable?
   class { 'glance::db::mysql':
-    host     => '127.0.0.1',
+#    host     => '127.0.0.1',
+    host     => $glance_host,
     password => $glance_db_password,
   }
+
   # TODO should I allow all hosts to connect?
   class { 'nova::db::mysql':
     password      => $nova_db_password,
     host          => $internal_address,
-    allowed_hosts => '%',
+    allowed_hosts => $allowed_hosts,
   }
 
   ####### KEYSTONE ###########
 
   # set up keystone
   class { 'keystone':
+    ## DODCS
+    services_host => $keystone_host,
+    create_endpoints => true,
+#    create_endpoints => false,
+    ## End DODCS
     admin_token  => $keystone_admin_token,
     # we are binding keystone on all interfaces
     # the end user may want to be more restrictive
     bind_host    => '0.0.0.0',
     log_verbose  => $verbose,
     log_debug    => $verbose,
-    catalog_type => 'sql',
+    catalog_type => $keystone_cata_type,
   }
   # set up keystone database
   # set up the keystone config for mysql
   class { 'keystone::config::mysql':
+    host     => $keystone_host,
     password => $keystone_db_password,
   }
-  # set up keystone admin users
-  class { 'keystone::roles::admin':
-    email    => $admin_email,
-    password => $admin_password,
+
+  # # DODCS kyao try to surpress keystone user creation
+  # # set up keystone admin users
+  # class { 'keystone::roles::admin':
+  #   email    => $admin_email,
+  #   password => $admin_password,
+  # }
+
+  # DODCS Added to create here instead of keystone::roles::admin
+  class { 'openstack::auth_file':
+    admin_password       => $admin_password,
+    keystone_admin_token => $keystone_admin_token,
+    admin_user           => 'admin',
+    admin_tenant         => 'admin',
+    ec2_port             => '8773',
   }
-  # set up the keystone service and endpoint
-  class { 'keystone::endpoint':
-    public_address   => $public_address,
-    internal_address => $internal_address,
-    admin_address    => $admin_address,
-  }
-  # set up glance service,user,endpoint
-  class { 'glance::keystone::auth':
-    password         => $glance_user_password,
-    public_address   => $public_address,
-    internal_address => $internal_address,
-    admin_address    => $admin_address,
-  }
-  # set up nova serice,user,endpoint
-  class { 'nova::keystone::auth':
-    password         => $nova_user_password,
-    public_address   => $public_address,
-    internal_address => $internal_address,
-    admin_address    => $admin_address,
-  }
+
+# DODCS: These next three done by the script for auth_file.
+  # # set up the keystone service and endpoint
+  # class { 'keystone::endpoint':
+  #   public_address   => $public_address,
+  #   internal_address => $internal_address,
+  #   admin_address    => $admin_address,
+  # }
+  # # set up glance service,user,endpoint
+  # class { 'glance::keystone::auth':
+  #   password         => $glance_user_password,
+  #   public_address   => $public_address,
+  #   internal_address => $internal_address,
+  #   admin_address    => $admin_address,
+  # }
+  # # set up nova serice,user,endpoint
+  # class { 'nova::keystone::auth':
+  #   password         => $nova_user_password,
+  #   public_address   => $public_address,
+  #   internal_address => $internal_address,
+  #   admin_address    => $admin_address,
+  # }
 
   ######## END KEYSTONE ##########
 
@@ -167,26 +214,30 @@ class openstack::controller(
     log_verbose       => $verbose,
     log_debug         => $verbose,
     auth_type         => 'keystone',
-    auth_host         => '127.0.0.1',
+#    auth_host         => '127.0.0.1',
+    auth_host         => $keystone_host,
     auth_port         => '35357',
-    keystone_tenant   => 'services',
-    keystone_user     => 'glance',
+    keystone_tenant   => $glance_tenant,
+    keystone_user     => $glance_user,
     keystone_password => $glance_user_password,
-    require => Keystone_user_role["glance@services"],
+# DODCS    require => Keystone_user_role["glance@services"],
   }
+
   class { 'glance::backend::file': }
 
   class { 'glance::registry':
     log_verbose       => $verbose,
     log_debug         => $verbose,
     auth_type         => 'keystone',
-    auth_host         => '127.0.0.1',
+#    auth_host         => '127.0.0.1',
+    auth_host         => $keystone_host,
     auth_port         => '35357',
-    keystone_tenant   => 'services',
-    keystone_user     => 'glance',
+    keystone_tenant   => $glance_tenant,
+    keystone_user     => $glance_user,
     keystone_password => $glance_user_password,
-    sql_connection    => "mysql://glance:${glance_db_password}@127.0.0.1/glance",
-    require           => [Class['Glance::Db::Mysql'], Keystone_user_role['glance@services']]
+#    sql_connection    => "mysql://glance:${glance_db_password}@127.0.0.1/glance",
+    sql_connection    => "mysql://glance:${glance_db_password}@${glance_host}/glance",
+# DODCS     require           => [Class['Glance::Db::Mysql'], Keystone_user_role['glance@services']]
   }
 
   ######## END GLANCE ###########
@@ -210,29 +261,52 @@ class openstack::controller(
     image_service      => 'nova.image.glance.GlanceImageService',
     glance_api_servers => $glance_connection,
     verbose            => $verbose,
+    # DODCS
+    package_ensure     => $package_ensure,
+    nova_ca_path       => $nova_ca_path,
+    folsom_nova_conf   => $folsom_nova_conf,
+    # End DODCS
   }
+
+# DODCS: Use class from all.pp
+  # class { 'nova::api':
+  #   enabled           => true,
+  #   # TODO this should be the nova service credentials
+  #   #admin_tenant_name => 'openstack',
+  #   #admin_user        => 'admin',
+  #   #admin_password    => $admin_service_password,
+  #   admin_tenant_name => 'services',
+  #   admin_user        => 'nova',
+  #   admin_password    => $nova_user_password,
+  #   require => Keystone_user_role["nova@services"],
+  # }
 
   class { 'nova::api':
     enabled           => true,
-    # TODO this should be the nova service credentials
-    #admin_tenant_name => 'openstack',
-    #admin_user        => 'admin',
-    #admin_password    => $admin_service_password,
-    admin_tenant_name => 'services',
-    admin_user        => 'nova',
+    auth_host         => $keystone_host,
+    admin_user        => $nova_user,
     admin_password    => $nova_user_password,
-    require => Keystone_user_role["nova@services"],
+    admin_tenant_name => $nova_tenant,
   }
 
   class { [
     'nova::cert',
-    'nova::consoleauth',
+# DODCS Turn of consoleauth
+#    'nova::consoleauth',
     'nova::scheduler',
-    'nova::objectstore',
-    'nova::vncproxy'
+    'nova::objectstore'
+#    'nova::objectstore',
+#    'nova::vncproxy' Added below
   ]:
     enabled => true,
   }
+
+  # DODCS: Added from all.pp
+  class { 'nova::vncproxy':
+    enabled => true,
+    host    => $public_hostname,
+  }
+
 
   if $multi_host {
     nova_config { 'multi_host':   value => 'True'; }
@@ -243,16 +317,16 @@ class openstack::controller(
 
   # set up networking
   class { 'nova::network':
-    private_interface => $private_interface,
-    public_interface  => $public_interface,
-    fixed_range       => $fixed_range,
-    floating_range    => $floating_range,
-    network_manager   => $network_manager,
     config_overrides  => $network_config,
     create_networks   => $create_networks,
-    num_networks      => $num_networks,
     enabled           => $enable_network_service,
+    fixed_range       => $fixed_range,
+    floating_range    => $floating_range,
     install_service   => $enable_network_service,
+    network_manager   => $network_manager,
+    num_networks      => $num_networks, # NB: Different from all.pp
+    private_interface => $private_interface,
+    public_interface  => $public_interface,
   }
 
   ######## Horizon ########
@@ -261,7 +335,10 @@ class openstack::controller(
     listen_ip => '127.0.0.1',
   }
 
-  class { 'horizon': }
+
+  class { 'horizon':
+    package_ensure => $package_ensure,
+  }
 
 
   ######## End Horizon #####

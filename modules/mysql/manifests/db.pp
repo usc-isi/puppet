@@ -35,7 +35,8 @@
 define mysql::db (
   $user,
   $password,
-  $charset     = 'utf8',
+#  $charset     = 'utf8',
+  $charset     = 'latin1',
   $host        = 'localhost',
   $grant       = 'all',
   $sql         = '',

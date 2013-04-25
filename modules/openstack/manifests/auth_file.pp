@@ -9,9 +9,11 @@ class openstack::auth_file(
   $keystone_admin_token = 'keystone_admin_token',
   $admin_user           = 'admin',
   $admin_tenant         = 'openstack',
-  $ec2_port             = '8773'
+  $ec2_port             = '8773',
+  $openrc               = '/root/openrc'
 ) {
-  file { '/root/openrc':
+
+  file { "${openrc}":
     content =>
   "
 export OS_TENANT_NAME=${admin_tenant}
@@ -33,18 +35,19 @@ export EUCALYPTUS_CERT=\${NOVA_CERT}
   }
 
   file { 'finish_openrc.sh':
-    ensure => present,
-    path   => '/root/finish_openrc.sh',
-    mode   => '0750',
-    owner  => 'root',
-    group  => 'root',
+    ensure  => present,
+    path    => '/root/finish_openrc.sh',
+    mode    => '0750',
+    owner   => 'root',
+    group   => 'root',
     content => template('openstack/finish_openrc.sh.erb'),
-    require => [ File['initial_data.sh'], File['/root/openrc'] ],
+    require => [ Class['keystone'], File['initial_data.sh'], File["${openrc}"] ],
   }
 
   exec { 'run_finish_openrc':
     command   => "/root/finish_openrc.sh",
     subscribe => File['finish_openrc.sh'],
+    unless    => "grep EC2_ACCESS_KEY ${openrc}",
   }
     
 }

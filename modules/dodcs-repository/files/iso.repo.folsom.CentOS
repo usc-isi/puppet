@@ -1,0 +1,14 @@
+[dodcs-sw-iso]
+name=dodcs-folsom-iso
+baseurl=file:///usr/share/repo/DODCS/hpc_folsom_repo
+enabled=1
+priority=1
+gpgcheck=0
+
+[rhel-iso]
+name=RHEL-iso
+baseurl=file:///usr/share/repo/RHEL
+enabled=1
+priority=5
+gpgcheck=0
+

@@ -39,6 +39,10 @@
 # Copyright 2012 Puppetlabs Inc, unless otherwise noted.
 #
 class keystone(
+  ## DODCS
+  $services_host    = '127.0.0.1', # ignored if create_endpoints false
+  $create_endpoints = false,
+  ## End DODCS
   $package_ensure = 'present',
   $bind_host      = '0.0.0.0',
   $public_port    = '5000',
@@ -138,7 +142,7 @@ class keystone(
     hasstatus  => true,
     hasrestart => true,
     provider   => $::keystone::params::service_provider,
-    subscribe  => Exec['keystone-manage db_sync'],
+    notify     => Exec['keystone-manage db_sync'],
   }
 
   # this probably needs to happen more often than just when the db is
@@ -146,22 +150,56 @@ class keystone(
   exec { 'keystone-manage db_sync':
     path        => '/usr/bin',
     refreshonly => false,
+    subscribe   => Service['keystone'],
+    notify      => Exec['initial_data'],
   }
 
+##  DODCS Additions, Essex and Folsom. Creates users, tenants, etc. by
+##  shell script instead of Puppet classes. 
+### TODO: Make use of Puppet classes again. ###
   file { 'initial_data.sh':
-    ensure => present,
-    path   => '/etc/keystone/initial_data.sh',
-    mode   => '0750',
-    owner  => 'root',
-    group  => 'root',
-    content => template('keystone/initial_data.sh.erb'),
+    ensure  => present,
+    path    => '/etc/keystone/initial_data.sh',
+    mode    => '0750',
+    owner   => 'root',
+    group   => 'root',
+# TODO: Nothing is processed at this time; perhaps should be.
+#    content => template('keystone/initial_data.sh.erb'),
+    source  => 'puppet:///modules/keystone/initial_data.sh',
+    require => File['keystone_shell_functions'],
     notify  => Exec['initial_data'],
   }
 
-  exec { 'initial_data':
-    command     => "/etc/keystone/initial_data.sh --token ${admin_token} --endpoint http://127.0.0.1:${admin_port}/v2.0/",
-    refreshonly => false,
-    subscribe   => File['initial_data.sh'],
+  file {'keystone_shell_functions':
+    ensure => present,
+    path   => '/etc/keystone/keystone_shell_functions',
+    owner  => 'root',
+    group  => 'root',
+    source => 'puppet:///modules/keystone/keystone_shell_functions',
+    notify => File['initial_data.sh'],
+  }
+
+  if $create_endpoints {
+  # The scripts only does default ports and service types...
+    exec { 'initial_data':
+      command     => "/etc/keystone/initial_data.sh --token ${admin_token} --endpoint http://${bind_host}:${admin_port}/v2.0/ --identity ${services_host} --image ${services_host}",
+      cwd         => '/etc/keystone',
+      # Script allows multiple invocations
+      refreshonly => false,
+      #    refreshonly => true,
+      require     => Exec['keystone-manage db_sync'],
+      subscribe   => [ File['initial_data.sh'], File['keystone_shell_functions'] ],
+    }
+  } else {
+    exec { 'initial_data':
+      command     => "/etc/keystone/initial_data.sh --token ${admin_token} --endpoint http://${bind_host}:${admin_port}/v2.0/",
+      cwd         => '/etc/keystone',
+      # Script allows multiple invocations
+      refreshonly => false,
+      #    refreshonly => true,
+      require     => Exec['keystone-manage db_sync'],
+      subscribe   => [ File['initial_data.sh'], File['keystone_shell_functions'] ],
+    }
   }
     
 }

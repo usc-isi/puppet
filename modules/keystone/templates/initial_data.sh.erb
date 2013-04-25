@@ -1,69 +1,132 @@
 #!/bin/bash
-echo "CLI ARGS: $*"
-set -o xtrace
+# --------------------------------------------------------------------------- #
+# Script to create the initial users and tenants for DODCS automated test
+# environment.
+# --------------------------------------------------------------------------- #
+# The command line  arguments should be something like:
+#   --token 999888777666 --endpoint http://127.0.0.1:35357/v2.0/
+# The token value is assigned to SERVICE_TOKEN and endpoint value to 
+# SERVICE_ENDPOINT so that neither is required on the keystone command line.
+# --------------------------------------------------------------------------- #
+
+# --------------------------------------------------------------------------- #
+# TODO: This doesn't really need to be an erb template file. It could, however,
+#       be modified to allow the Puppet manifest to configure the toles, users,
+#       and tenants to be created. Initial revision sets up the DODCS automated
+#       test environment.
+# --------------------------------------------------------------------------- #
+
+#echo "CLI ARGS: $*"
+#set -o xtrace
+ME=`basename $0`
+
+function usage {
+    echo ""
+    echo "usage: ${ME} --token token_value --endpoint url_string"
+    echo ""
+    echo "alternative usage: ${ME} -t token_value -e url_string"
+    echo "Unrecoginzed arguments are ignored."
+}
+
+
+if [ -f keystone_shell_functions ] ; then
+    . keystone_shell_functions
+else
+    echo "${ME}: cannot load keystone_shell_functions"
+    exit 1
+fi
+
+service_token=''
+service_endpoint=''
+
+# This optspec allows both "--token" and "-t" style arguments, but not
+# "--token=something" style.
+# Unrecognized arguments are ignored.
+optspec=":ht:e:-:"
+while getopts "${optspec}" optchar; do
+    case "${optchar}" in
+	-)
+	    case "${OPTARG}" in
+		token)
+		    service_token="${!OPTIND}"
+		    OPTIND=$(( $OPTIND + 1 ))
+		    ;;
+		endpoint)
+                    service_endpoint="${!OPTIND}"
+		    OPTIND=$(( $OPTIND + 1 ))
+                    ;;
+            esac
+	    ;;
+
+	t)
+	    service_token=${OPTARG}
+	    ;;
+
+	e)
+	    service_endpoint=${OPTARG}
+	    ;;
+
+	/?)
+	    usage;
+	    exit 2
+	    ;;
+    esac
+done
+
+if [ -z "${service_token}" -o -z "${service_endpoint}" ] ; then
+    echo "ERROR: cannot proceed without service token or service endpoint"
+    echo ""
+    usage
+    exit 3
+fi
+
+export SERVICE_TOKEN=${service_token}
+export SERVICE_ENDPOINT=${service_endpoint}
+
+# echo "Test: SERVICE_TOKEN=${SERVICE_TOKEN} and SERVICE_ENDPOINT=${SERVICE_ENDPOINT}"
+# exit 0
 
 # Roles
-keystone $* role-create --name Admin
-keystone $* role-create --name KeystoneServiceAdmin
-keystone $* role-create --name KeystoneAdmin
-keystone $* role-create --name Member
-keystone $* role-create --name Project1
+adminRole=$(role_create Admin)
+memberRole=$(role_create Member)
+keystoneServiceAdminRole=$(role_create KeystoneServiceAdmin)
+keystoneAdminRole=$(role_create KeystoneAdmin)
+project1Role=$(role_create Project1)
 
 # Users
-keystone $* user-create --name admin --pass secrete --email admin@example.com
-keystone $* user-create --name demo --pass demosecrete --email demo@example.com
-keystone $* user-create --name nova --pass secrete --email nova@example.com
-keystone $* user-create --name glance --pass secrete --email glance@example.com
+adminUser=$(user_create admin secrete admin@example.com)
+demoUser=$(user_create demo demosecrete demo@example.com)
+novaUser=$(user_create nova secrete nova@example.com)
+glanceUser=$(user_create glance secrete glance@example.com)
 
 # Tenants
-keystone $* tenant-create --name admin
-keystone $* tenant-create --name service
-keystone $* tenant-create --name demo
+adminTenant=$(tenant_create admin "Default admin tenant")
+serviceTenant=$(tenant_create service "Default service tenant")
+demoTenant=$(tenant_create demo 'Default demo tenant')
 
-# User Roles
-adminRole=`keystone $* role-list | grep ' Admin ' | awk '{print $2}'`
-memberRole=`keystone $* role-list | grep ' Member ' | awk '{print $2}'`
-keystoneServiceAdminRole=`keystone $* role-list | grep ' KeystoneServiceAdmin ' | awk '{print $2}'`
-keystoneAdminRole=`keystone $* role-list | grep ' KeystoneAdmin ' | awk '{print $2}'`
 
-adminUser=`keystone $* user-list | grep ' admin ' | awk '{print $2}'`
-demoUser=`keystone $* user-list | grep ' demo ' | awk '{print $2}'`
-novaUser=`keystone $* user-list | grep ' nova ' | awk '{print $2}'`
-glanceUser=`keystone $* user-list | grep ' glance ' | awk '{print $2}'`
+$(user_role_add $adminUser $adminRole  $adminTenant)
+$(user_role_add $adminUser $adminRole  $serviceTenant)
+$(user_role_add $adminUser $adminRole  $demoTenant)
 
-adminTenant=`keystone $* tenant-list | grep ' admin '  | awk '{print $2}'`
-serviceTenant=`keystone $* tenant-list | grep ' service '  | awk '{print $2}'`
-demoTenant=`keystone $* tenant-list | grep ' demo '  | awk '{print $2}'`
+$(user_role_add $adminUser $keystoneServiceAdminRole $adminTenant)
+$(user_role_add $adminUser $keystoneAdminRole $adminTenant)
 
-keystone $* user-role-add --user-id $adminUser --role-id $adminRole --tenant-id $adminTenant
-keystone $* user-role-add --user-id $adminUser --role-id $adminRole --tenant-id $serviceTenant
-keystone $* user-role-add --user-id $adminUser --role-id $adminRole --tenant-id $demoTenant
+$(user_role_add $demoUser $memberRole $demoTenant)
 
-keystone $* user-role-add --user-id $adminUser --role-id $keystoneServiceAdminRole --tenant-id $adminTenant
-keystone $* user-role-add --user-id $adminUser --role-id $keystoneAdminRole --tenant-id $adminTenant
+$(user_role_add $novaUser $adminRole $serviceTenant)
+$(user_role_add $glanceUser $adminRole $serviceTenant)
 
-keystone $* user-role-add --user-id $demoUser --role-id $memberRole --tenant-id $demoTenant
+# Tempest support
+tempestAdminUser=$(user_create tempestAdmin tpassadmin tempestAdmin@example.com)
+tempest1User=$(user_create tempest1 tpass1 tempest1@example.com)
+tempest2User=$(user_create tempest2 tpass2 tempest2@example.com)
 
-keystone $* user-role-add --user-id $novaUser --role-id $adminRole --tenant-id $serviceTenant
-keystone $* user-role-add --user-id $glanceUser --role-id $adminRole --tenant_id $serviceTenant
+tempestTenant=$(tenant_create tempest 'Tenant for Tempest automated testing')
 
-# tempest 
-
-keystone $* user-create --name tempestAdmin --pass tpassadmin --email tempestAdmin@example.com
-keystone $* user-create --name tempest1 --pass tpass1  --email tempest1@example.com
-keystone $* user-create --name tempest2 --pass tpass2 --email tempest2@example.com
-
-tempestAdminUser=`keystone $* user-list | grep ' tempestAdmin ' | awk '{print $2}'`
-tempest1User=`keystone $* user-list | grep ' tempest1 ' | awk '{print $2}'`
-tempest2User=`keystone $* user-list | grep ' tempest2 ' | awk '{print $2}'`
-
-keystone $* tenant-create --name tempest
-
-tempestTenant=`keystone $* tenant-list | grep ' tempest '  | awk '{print $2}'`
-
-keystone $* user-role-add --user-id $tempestAdminUser --role-id $adminRole --tenant_id $tempestTenant
-keystone $* user-role-add --user-id $tempest1User --role-id $memberRole --tenant_id $tempestTenant
-keystone $* user-role-add --user-id $tempest2User --role-id $memberRole --tenant_id $tempestTenant
+$(user_role_add $tempestAdminUser $adminRole $tempestTenant)
+$(user_role_add $tempest1User $memberRole $tempestTenant)
+$(user_role_add $tempest2User $memberRole $tempestTenant)
 
 # Allow this to run more-than-once and not return a failure.
 exit 0

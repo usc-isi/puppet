@@ -31,42 +31,29 @@ Puppet::Type.type(:rabbitmq_user).provide(:rabbitmqctl) do
     end
   end
 
-## DODCS OpenStack Edits ##
-
-#   # def password
-#   # def password=()
-#   def admin
-#     match = rabbitmqctl('list_users').split(/\n/)[1..-2].collect do |line|
-#       line.match(/^#{resource[:name]}\s+\[(administrator)?\]/)
-#     end.compact.first
-#     if match
-#       (:true if match[1].to_s == 'administrator') || :false
-#     else
-# # DODCS: return false for now
-# #      raise Puppet::Error, "Could not match line '#{resource[:name]} (true|false)' from list_users (perhaps you are running on an older version of rabbitmq that does not support admin users?)"
-#       :false
-#     end
-#   end
-
+  # def password
+  # def password=()
   def admin
-    # Set this user as admin; issuing multiple times doesn't seem to hurt.
-    rabbitmqctl('set_admin', resource[:name])
+    match = rabbitmqctl('list_users').split(/\n/)[1..-2].collect do |line|
+      line.match(/^#{resource[:name]}\s+\[(administrator)?\]/)
+    end.compact.first
+    if match
+      (:true if match[1].to_s == 'administrator') || :false
+    else
+      raise Puppet::Error, "Could not match line '#{resource[:name]} (true|false)' from list_users (perhaps you are running on an older version of rabbitmq that does not support admin users?)"
+    end
   end
 
   def admin=(state)
     if state == :true
       make_user_admin()
     else
-#      rabbitmqctl('set_user_tags', resource[:name])
-      rabbitmqctl('clear_admin', resource[:name])
+      rabbitmqctl('set_user_tags', resource[:name])
     end
   end
 
-#  def make_user_admin
-#    rabbitmqctl('set_user_tags', resource[:name], 'administrator')
-#  end
   def make_user_admin
-    rabbitmqctl('set_admin', resource[:name])
+    rabbitmqctl('set_user_tags', resource[:name], 'administrator')
   end
 
 end
